@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SuaraKaca - Text to Speech Bahasa Indonesia</title>
+  <link rel="icon" type="image/png" href="/static/images/icon.png">
+  <link rel="apple-touch-icon" href="/static/images/icon.png">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="brand-wrapper">
+      <img src="/static/images/icon.png" alt="Logo SuaraKaca" class="brand-logo-img">
+      <div>
+        <span class="brand-title">SuaraKaca</span>
+        <span class="brand-badge">Neural ID</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="header-status">
+        <span class="status-indicator" aria-hidden="true"></span>
+        <span class="status-text">Mesin Suara Siap</span>
+      </div>
+
+      <!-- Profile Button in Navigation Bar -->
+      <button id="profileBtn" class="profile-nav-btn" aria-label="Buka profil pembuat Kuroneko" aria-haspopup="dialog">
+        <img src="/static/images/iconprofilesaya.png" alt="Foto Kuroneko" class="nav-avatar">
+        <span class="nav-profile-name">Kuroneko</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Profile Modal Dialog (Liquid Glass) -->
+  <div id="profileModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalProfileTitle"
+    style="display: none;">
+    <div class="modal-glass-card">
+      <button id="closeProfileModal" class="modal-close-btn" aria-label="Tutup jendela profil">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+
+      <div class="profile-hero">
+        <div class="profile-avatar-wrapper">
+          <img src="/static/images/iconprofilesaya.png" alt="Foto Profil Kuroneko" class="profile-avatar-large">
+          <span class="profile-online-badge" title="Online" aria-hidden="true"></span>
+        </div>
+        <h3 id="modalProfileTitle" class="profile-name">Kuroneko</h3>
+        <span class="profile-badge">Created by Kuroneko</span>
+        <p class="profile-bio">
+          Pengembang aplikasi SuaraKaca. Dibuat dengan dedikasi untuk Text to Speech bahasa Indonesia yang jernih.
+        </p>
+      </div>
+
+      <div class="profile-links">
+        <a href="https://instagram.com/bayuadirahayu" target="_blank" rel="noopener noreferrer"
+          class="social-link-btn instagram-btn" aria-label="Buka Instagram @bayuadirahayu di tab baru">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path
+              d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+          </svg>
+          <span>Instagram: @bayuadirahayu</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            class="external-icon" aria-hidden="true">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="main-container">
+
+    <!-- Error Toast -->
+    <div id="errorToast" class="error-toast" role="alert">
+      <span id="errorMessage">Terjadi kesalahan pada sistem.</span>
+      <button id="errorCloseBtn" class="error-close" aria-label="Tutup pesan kesalahan">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Text Input Panel -->
+    <section class="glass-panel editor-section" aria-labelledby="editorHeading">
+      <div class="editor-header">
+        <h2 id="editorHeading" class="section-label">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          Naskah Teks
+        </h2>
+        <div class="editor-actions">
+          <span id="charCounter" class="char-counter">0 / 4000 karakter</span>
+          <button id="clearTextBtn" class="btn-ghost-sm" aria-label="Bersihkan teks">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            Hapus
+          </button>
+        </div>
+      </div>
+
+      <div class="text-input-wrapper">
+        <textarea id="speechText" class="speech-textarea"
+          placeholder="Tulis atau tempel teks bahasa Indonesia di sini. Pilih karakter suara dan emosi di bawah, lalu tekan tombol Konversi untuk mendengarkan..."
+          maxlength="4000" rows="5"></textarea>
+      </div>
+
+      <!-- Quick Preset Examples -->
+      <div class="presets-bar">
+        <span class="presets-label">Contoh naskah:</span>
+        <button type="button" class="chip-btn" data-preset="naratif">
+          Naratif (Dokumenter)
+        </button>
+        <button type="button" class="chip-btn" data-preset="ceria">
+          Ceria (Promosi & Semangat)
+        </button>
+        <button type="button" class="chip-btn" data-preset="sedih">
+          Sedih (Puisi Reflektif)
+        </button>
+      </div>
+    </section>
+
+    <!-- Voice & Emotion Configuration -->
+    <section class="glass-panel" aria-labelledby="configHeading">
+      <h2 id="configHeading" class="section-label" style="margin-bottom: 20px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+          <line x1="12" y1="19" x2="12" y2="23"></line>
+          <line x1="8" y1="23" x2="16" y2="23"></line>
+        </svg>
+        Karakter Suara & Ekspresi
+      </h2>
+
+      <div class="controls-grid">
+        <!-- Voice Choice (Gender) -->
+        <div class="control-group">
+          <span class="group-title">Pilihan Karakter Suara</span>
+          <div class="selector-row" role="radiogroup" aria-label="Pilihan Karakter Suara">
+            <!-- Gadis (Female) -->
+            <div class="selectable-card active" data-voice="id-ID-GadisNeural" tabindex="0" role="radio"
+              aria-checked="true">
+              <div class="card-title-row">
+                <span class="card-title">Gadis (Perempuan)</span>
+                <span class="radio-dot" aria-hidden="true"></span>
+              </div>
+              <p class="card-desc">Jernih, artikulatif, hangat, dan sangat nyaman didengar.</p>
+            </div>
+            <!-- Ardi (Male) -->
+            <div class="selectable-card" data-voice="id-ID-ArdiNeural" tabindex="0" role="radio" aria-checked="false">
+              <div class="card-title-row">
+                <span class="card-title">Ardi (Laki-laki)</span>
+                <span class="radio-dot" aria-hidden="true"></span>
+              </div>
+              <p class="card-desc">Berwibawa, dalam, ramah, dan bernuansa percaya diri.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tone / Emotion Choice -->
+        <div class="control-group">
+          <span class="group-title">Pilihan Emosi Suara</span>
+          <div class="selector-row" role="radiogroup" aria-label="Pilihan Emosi Suara">
+            <!-- Naratif -->
+            <div class="selectable-card active" data-tone="naratif" tabindex="0" role="radio" aria-checked="true">
+              <div class="card-title-row">
+                <span class="card-title">Naratif</span>
+                <span class="radio-dot" aria-hidden="true"></span>
+              </div>
+              <p class="card-desc">Stabil, teratur, cocok untuk buku audio dan presentasi.</p>
+            </div>
+            <!-- Ceria -->
+            <div class="selectable-card" data-tone="ceria" tabindex="0" role="radio" aria-checked="false">
+              <div class="card-title-row">
+                <span class="card-title">Ceria</span>
+                <span class="radio-dot" aria-hidden="true"></span>
+              </div>
+              <p class="card-desc">Tempo lincah dan nada tinggi penuh energi positif.</p>
+            </div>
+            <!-- Sedih -->
+            <div class="selectable-card" data-tone="sedih" tabindex="0" role="radio" aria-checked="false">
+              <div class="card-title-row">
+                <span class="card-title">Sedih</span>
+                <span class="radio-dot" aria-hidden="true"></span>
+              </div>
+              <p class="card-desc">Tempo lambat, hening lembut, penuh emosi mendalam.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fine-tune Sliders -->
+      <div class="sliders-wrapper"
+        style="margin-top: 24px; border-top: 1px solid var(--border-subtle); padding-top: 20px;">
+        <div class="slider-item">
+          <div class="slider-label-row">
+            <label for="rateSlider" class="slider-name">Kecepatan Bicara</label>
+            <span id="rateValue" class="slider-value">Normal (0%)</span>
+          </div>
+          <input type="range" id="rateSlider" min="-30" max="40" value="0" step="5">
+        </div>
+        <div class="slider-item">
+          <div class="slider-label-row">
+            <label for="pitchSlider" class="slider-name">Tinggi Nada (Pitch)</label>
+            <span id="pitchValue" class="slider-value">Normal (0Hz)</span>
+          </div>
+          <input type="range" id="pitchSlider" min="-20" max="20" value="0" step="2">
+        </div>
+      </div>
+    </section>
+
+    <!-- Generate Action -->
+    <div class="action-bar">
+      <button id="generateBtn" class="btn-primary-generate" type="button">
+        <svg id="generateIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2.5">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+        </svg>
+        <svg id="loadingSpinner" class="loading-circle" width="20" height="20" viewBox="0 0 24 24" fill="none"
+          style="display: none;" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.5" stroke="currentColor" stroke-width="3" opacity="0.25"></circle>
+          <path d="M12 2.5a9.5 9.5 0 0 1 9.5 9.5" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path>
+        </svg>
+        <span id="generateBtnText">Konversi ke Suara</span>
+      </button>
+      <span class="card-desc">Format suara jernih tanpa distorsi kompresi.</span>
+    </div>
+
+    <!-- Creator Credits Footer -->
+    <div class="app-credit-footer">
+      <span>Dibuat oleh <strong>Kuroneko</strong></span>
+      <span class="credit-divider">•</span>
+      <a href="https://instagram.com/bayuadirahayu" target="_blank" rel="noopener noreferrer" class="credit-link">
+        Instagram: @bayuadirahayu
+      </a>
+    </div>
+
+  </main>
+
+  <!-- Sticky Spotify Bottom Player Dock (Liquid Glass) -->
+  <footer class="spotify-dock" id="playerDock" aria-label="Pemutar Suara Preview">
+    <!-- Left: Track Metadata -->
+    <div class="dock-track-info">
+      <div class="track-avatar" id="playerAvatar" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 18V5l12-2v13"></path>
+          <circle cx="6" cy="18" r="3"></circle>
+          <circle cx="18" cy="16" r="3"></circle>
+        </svg>
+      </div>
+      <div class="track-meta">
+        <span class="track-title" id="playerTitle">Belum ada audio</span>
+        <span class="track-subtitle" id="playerSubtitle">Gadis (Perempuan) • Naratif</span>
+      </div>
+    </div>
+
+    <!-- Center: Playback Controls & Scrubber -->
+    <div class="dock-playback">
+      <div class="playback-buttons">
+        <button id="rewindBtn" class="btn-ctrl" aria-label="Mundur 5 detik" disabled>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="11 17 6 12 11 7"></polyline>
+            <polyline points="18 17 13 12 18 7"></polyline>
+          </svg>
+        </button>
+
+        <button id="playPauseBtn" class="btn-play-pause" aria-label="Putar audio" disabled>
+          <svg id="playIcon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <svg id="pauseIcon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+            <rect x="6" y="4" width="4" height="16"></rect>
+            <rect x="14" y="4" width="4" height="16"></rect>
+          </svg>
+        </button>
+
+        <button id="forwardBtn" class="btn-ctrl" aria-label="Maju 5 detik" disabled>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="13 17 18 12 13 7"></polyline>
+            <polyline points="6 17 11 12 6 7"></polyline>
+          </svg>
+        </button>
+      </div>
+
+      <div class="scrubber-row">
+        <span id="currentTime" class="time-text">0:00</span>
+        <div id="progressTrack" class="progress-track" role="slider" aria-label="Progres pemutaran" aria-valuemin="0"
+          aria-valuemax="100" aria-valuenow="0" tabindex="0">
+          <div id="progressFill" class="progress-fill">
+            <div class="progress-handle"></div>
+          </div>
+        </div>
+        <span id="durationTime" class="time-text">0:00</span>
+      </div>
+    </div>
+
+    <!-- Right: Visualizer Spectrum & Dual Downloads -->
+    <div class="dock-actions">
+      <canvas id="visualizerCanvas" class="visualizer-canvas" width="80" height="32" aria-hidden="true"></canvas>
+
+      <div class="volume-group">
+        <button id="muteBtn" class="btn-ctrl" aria-label="Bisukan suara">
+          <svg id="volumeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          </svg>
+        </button>
+        <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.05" value="1"
+          aria-label="Pengatur volume">
+      </div>
+
+      <button id="downloadMp3Btn" class="btn-download" aria-label="Unduh format MP3" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        .MP3
+      </button>
+
+      <button id="downloadWavBtn" class="btn-download btn-download-wav" aria-label="Unduh format WAV" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        .WAV
+      </button>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="/static/js/wav_encoder.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+
+</html>
