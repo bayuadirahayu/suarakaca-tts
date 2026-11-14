@@ -1086,3 +1086,110 @@ input[type="range"]:hover::-webkit-slider-thumb {
     transform: rotate(360deg);
   }
 }
+
+/* ==========================================================================
+   Studio Audio Editor (Real-time Editing)
+   ========================================================================== */
+.studio-editor-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--bg-surface);
+  border: 1px solid rgba(29, 185, 84, 0.22);
+  transition: all var(--transition-normal);
+}
+
+.studio-status-pill {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--spotify-green);
+  background: rgba(29, 185, 84, 0.12);
+  border: 1px solid rgba(29, 185, 84, 0.3);
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+}
+
+.studio-status-pill.ready {
+  background: rgba(29, 185, 84, 0.2);
+  border-color: var(--spotify-green);
+  color: #ffffff;
+}
+
+.studio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+.studio-box {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.quick-tempo-chips {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.mini-chip {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.mini-chip:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+}
+
+.mini-chip.active {
+  background: var(--spotify-green);
+  color: #000000;
+  border-color: var(--spotify-green);
+}
+
+.slider-help-text {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.slider-help-caption {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+  margin-top: 4px;
+}
+
+.reverb-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trimmer-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.trimmer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}

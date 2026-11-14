@@ -249,6 +249,149 @@
       <span class="card-desc">Format suara jernih tanpa distorsi kompresi.</span>
     </div>
 
+    <!-- Studio Audio Editor Section (Active after Conversion) -->
+    <section class="glass-panel studio-editor-panel" id="studioEditorPanel" aria-labelledby="studioEditorHeading">
+      <div class="editor-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <h2 id="studioEditorHeading" class="section-label">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 20h9"></path>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+            </svg>
+            Studio Pengeditan Audio (Real-time)
+          </h2>
+          <span class="studio-status-pill" id="studioStatusPill">Menunggu Suara</span>
+        </div>
+        <button id="resetAudioEffectsBtn" class="btn-ghost-sm" type="button" aria-label="Reset semua efek ke normal">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="1 4 1 10 7 10"></polyline>
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+          </svg>
+          Reset Efek
+        </button>
+      </div>
+
+      <p class="card-desc" style="margin-top: 4px; margin-bottom: 18px;">
+        Ubah tempo kecepatan, tinggi nada, kejernihan vokal, dan efek ruang secara langsung tanpa perlu konversi ulang.
+      </p>
+
+      <div class="studio-grid">
+        <!-- Tempo & Pitch Real-time -->
+        <div class="studio-box">
+          <span class="group-title">Tempo & Nada Real-time</span>
+          
+          <div class="slider-item">
+            <div class="slider-label-row">
+              <label for="liveSpeedSlider" class="slider-name">Kecepatan Putar (Speed)</label>
+              <span id="liveSpeedValue" class="slider-value">1.0x (Normal)</span>
+            </div>
+            <input type="range" id="liveSpeedSlider" min="0.5" max="2.0" step="0.05" value="1.0">
+            <div class="quick-tempo-chips">
+              <button type="button" class="mini-chip" data-speed="0.75">0.75x</button>
+              <button type="button" class="mini-chip active" data-speed="1.0">1.0x</button>
+              <button type="button" class="mini-chip" data-speed="1.25">1.25x</button>
+              <button type="button" class="mini-chip" data-speed="1.5">1.5x</button>
+            </div>
+          </div>
+
+          <div class="slider-item" style="margin-top: 14px;">
+            <div class="slider-label-row">
+              <label for="livePitchSlider" class="slider-name">Penggeser Nada (Pitch Shift)</label>
+              <span id="livePitchValue" class="slider-value">Normal (0)</span>
+            </div>
+            <input type="range" id="livePitchSlider" min="-10" max="10" step="1" value="0">
+            <div class="slider-help-text">
+              <span>-10 (Lebih Berat / Pria)</span>
+              <span>+10 (Lebih Ringan / Cerah)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Equalizer Vokal Studio -->
+        <div class="studio-box">
+          <span class="group-title">Equalizer Vokal Studio</span>
+
+          <div class="slider-item">
+            <div class="slider-label-row">
+              <label for="eqClaritySlider" class="slider-name">Kejernihan Vokal (Clarity Boost)</label>
+              <span id="eqClarityValue" class="slider-value">+0 dB (Flat)</span>
+            </div>
+            <input type="range" id="eqClaritySlider" min="0" max="12" step="1" value="0">
+            <span class="slider-help-caption">Meningkatkan kejelasan konsonan artikulasi vokal.</span>
+          </div>
+
+          <div class="slider-item" style="margin-top: 14px;">
+            <div class="slider-label-row">
+              <label for="eqBassSlider" class="slider-name">Kehangatan Vokal (Warmth & Bass)</label>
+              <span id="eqBassValue" class="slider-value">+0 dB (Flat)</span>
+            </div>
+            <input type="range" id="eqBassSlider" min="0" max="10" step="1" value="0">
+            <span class="slider-help-caption">Memberikan kedalaman resonansi empuk khas penyiar podcast.</span>
+          </div>
+        </div>
+
+        <!-- Efek Akustik Ruang -->
+        <div class="studio-box">
+          <span class="group-title">Efek Akustik Ruang</span>
+          <div class="reverb-options" role="radiogroup" aria-label="Pilihan Ruang Akustik">
+            <div class="selectable-card active" data-reverb="dry" tabindex="0" role="radio" aria-checked="true">
+              <div class="card-title-row">
+                <span class="card-title">Studio Bersih (Dry)</span>
+                <span class="radio-dot" aria-hidden="true"></span>
+              </div>
+              <p class="card-desc">Vokal murni studio tanpa pantulan gema.</p>
+            </div>
+            <div class="selectable-card" data-reverb="room" tabindex="0" role="radio" aria-checked="false">
+              <div class="card-title-row">
+                <span class="card-title">Podcast Room</span>
+                <span class="radio-dot" aria-hidden="true"></span>
+              </div>
+              <p class="card-desc">Ruang kedap akustik hangat dan intim.</p>
+            </div>
+            <div class="selectable-card" data-reverb="hall" tabindex="0" role="radio" aria-checked="false">
+              <div class="card-title-row">
+                <span class="card-title">Panggung Narasi</span>
+                <span class="radio-dot" aria-hidden="true"></span>
+              </div>
+              <p class="card-desc">Ruang luas dengan pantulan lembut untuk narasi epik.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pemotong Audio (Trimmer) -->
+        <div class="studio-box">
+          <span class="group-title">Pemotong Audio (Trimmer)</span>
+          <div class="trimmer-row">
+            <div class="slider-item">
+              <div class="slider-label-row">
+                <label for="trimStartSlider" class="slider-name">Mulai Potong (Detik)</label>
+                <span id="trimStartValue" class="slider-value">0.00s</span>
+              </div>
+              <input type="range" id="trimStartSlider" min="0" max="60" step="0.1" value="0">
+            </div>
+            <div class="slider-item">
+              <div class="slider-label-row">
+                <label for="trimEndSlider" class="slider-name">Selesai Potong (Detik)</label>
+                <span id="trimEndValue" class="slider-value">Akhir</span>
+              </div>
+              <input type="range" id="trimEndSlider" min="0" max="60" step="0.1" value="60">
+            </div>
+          </div>
+          <div class="trimmer-actions">
+            <button id="previewTrimBtn" class="btn-ghost-sm" type="button" aria-label="Putar bagian potongan">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              Putar Potongan
+            </button>
+            <button id="resetTrimBtn" class="btn-ghost-sm" type="button" aria-label="Reset rentang potongan">
+              Reset Waktu
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Creator Credits Footer -->
     <div class="app-credit-footer">
       <span>Dibuat oleh <strong>Kuroneko</strong></span>

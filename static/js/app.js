@@ -1,6 +1,6 @@
 /**
  * SuaraKaca - Text to Speech Frontend Logic
- * Implements Spotify-inspired Liquid Glass Player & Audio Synthesizer
+ * Implements Spotify-inspired Liquid Glass Player & Real-time Audio Studio Editor
  */
 
 (function () {
@@ -30,10 +30,20 @@
     duration: 0,
     currentTime: 0,
     volume: 1.0,
-    isMuted: false
+    isMuted: false,
+    hasAudioLoaded: false,
+
+    // Studio Real-time Edit State
+    liveSpeed: 1.0,
+    livePitch: 0,
+    eqClarity: 0,
+    eqBass: 0,
+    reverbMode: 'dry',
+    trimStart: 0,
+    trimEnd: 0
   };
 
-  // DOM Elements
+  // DOM Elements - Text & Config
   const speechText = document.getElementById('speechText');
   const charCounter = document.getElementById('charCounter');
   const clearTextBtn = document.getElementById('clearTextBtn');
@@ -77,26 +87,107 @@
   const downloadMp3Btn = document.getElementById('downloadMp3Btn');
   const downloadWavBtn = document.getElementById('downloadWavBtn');
 
-  // HTML5 Audio Element & Web Audio API
+  // Studio Audio Editor Elements
+  const studioStatusPill = document.getElementById('studioStatusPill');
+  const resetAudioEffectsBtn = document.getElementById('resetAudioEffectsBtn');
+  const liveSpeedSlider = document.getElementById('liveSpeedSlider');
+  const liveSpeedValue = document.getElementById('liveSpeedValue');
+  const quickTempoChips = document.querySelectorAll('.mini-chip');
+  const livePitchSlider = document.getElementById('livePitchSlider');
+  const livePitchValue = document.getElementById('livePitchValue');
+  const eqClaritySlider = document.getElementById('eqClaritySlider');
+  const eqClarityValue = document.getElementById('eqClarityValue');
+  const eqBassSlider = document.getElementById('eqBassSlider');
+  const eqBassValue = document.getElementById('eqBassValue');
+  const reverbCards = document.querySelectorAll('[data-reverb]');
+  const trimStartSlider = document.getElementById('trimStartSlider');
+  const trimStartValue = document.getElementById('trimStartValue');
+  const trimEndSlider = document.getElementById('trimEndSlider');
+  const trimEndValue = document.getElementById('trimEndValue');
+  const previewTrimBtn = document.getElementById('previewTrimBtn');
+  const resetTrimBtn = document.getElementById('resetTrimBtn');
+
+  // HTML5 Audio Element & Web Audio API Graph
   const audio = new Audio();
   let audioCtx = null;
-  let analyserNode = null;
   let sourceNode = null;
+  let clarityFilter = null;
+  let warmthFilter = null;
+  let convolverNode = null;
+  let wetGain = null;
+  let dryGain = null;
+  let masterGain = null;
+  let analyserNode = null;
   let visualizerAnimId = null;
 
-  // Initialize Web Audio Context on first user action
+  // Generate synthetic impulse response for studio room acoustics
+  function createReverbImpulse(ctx, duration = 1.2, decay = 2.0) {
+    const sampleRate = ctx.sampleRate;
+    const length = Math.floor(sampleRate * duration);
+    const impulse = ctx.createBuffer(2, length, sampleRate);
+    const left = impulse.getChannelData(0);
+    const right = impulse.getChannelData(1);
+    for (let i = 0; i < length; i++) {
+      const factor = Math.exp(-i / (sampleRate * (duration / decay)));
+      left[i] = (Math.random() * 2 - 1) * factor;
+      right[i] = (Math.random() * 2 - 1) * factor;
+    }
+    return impulse;
+  }
+
+  // Initialize Web Audio Context and effects graph on first user interaction
   function initAudioContext() {
     if (!audioCtx) {
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       audioCtx = new AudioContextClass();
+
+      // Equalizer Nodes
+      clarityFilter = audioCtx.createBiquadFilter();
+      clarityFilter.type = 'peaking';
+      clarityFilter.frequency.value = 3200;
+      clarityFilter.Q.value = 1.2;
+      clarityFilter.gain.value = state.eqClarity;
+
+      warmthFilter = audioCtx.createBiquadFilter();
+      warmthFilter.type = 'lowshelf';
+      warmthFilter.frequency.value = 200;
+      warmthFilter.gain.value = state.eqBass;
+
+      // Reverb Nodes
+      convolverNode = audioCtx.createConvolver();
+      convolverNode.buffer = createReverbImpulse(audioCtx, 1.2, 2.5);
+
+      wetGain = audioCtx.createGain();
+      wetGain.gain.value = 0.0;
+
+      dryGain = audioCtx.createGain();
+      dryGain.gain.value = 1.0;
+
+      // Master & Analyser
+      masterGain = audioCtx.createGain();
       analyserNode = audioCtx.createAnalyser();
       analyserNode.fftSize = 64;
+
       try {
         sourceNode = audioCtx.createMediaElementSource(audio);
-        sourceNode.connect(analyserNode);
+        
+        // Chain: source -> clarity -> warmth -> dry & wet -> master -> analyser -> out
+        sourceNode.connect(clarityFilter);
+        clarityFilter.connect(warmthFilter);
+
+        // Dry path
+        warmthFilter.connect(dryGain);
+        dryGain.connect(masterGain);
+
+        // Wet (Reverb) path
+        warmthFilter.connect(convolverNode);
+        convolverNode.connect(wetGain);
+        wetGain.connect(masterGain);
+
+        masterGain.connect(analyserNode);
         analyserNode.connect(audioCtx.destination);
       } catch (e) {
-        console.warn('Audio node connection warning:', e);
+        console.warn('Audio graph connection notice:', e);
       }
     }
     if (audioCtx.state === 'suspended') {
@@ -104,7 +195,7 @@
     }
   }
 
-  // Formatting helper: seconds to mm:ss
+  // Formatting helper: seconds to m:ss
   function formatTime(seconds) {
     if (isNaN(seconds) || seconds < 0) return '0:00';
     const mins = Math.floor(seconds / 60);
@@ -146,7 +237,6 @@
       if (PRESET_TEXTS[presetKey]) {
         speechText.value = PRESET_TEXTS[presetKey];
         charCounter.textContent = `${speechText.value.length} / 4000 karakter`;
-        // Select corresponding tone
         selectTone(presetKey);
       }
     });
@@ -213,20 +303,224 @@
     playerSubtitle.textContent = `${state.selectedVoiceName} • ${state.selectedToneName}`;
   }
 
-  // Sliders fine-tuning
+  // ==========================================================================
+  // Real-time Audio Editing & Parameter Synchronization
+  // ==========================================================================
+
+  function updateLivePlaybackParameters() {
+    if (!audio.src) return;
+    initAudioContext();
+
+    const semitones = state.livePitch;
+    const pitchRatio = Math.pow(2, semitones / 12);
+
+    if (semitones === 0) {
+      audio.preservesPitch = true;
+      audio.playbackRate = state.liveSpeed;
+    } else {
+      audio.preservesPitch = false;
+      audio.playbackRate = Math.max(0.25, Math.min(3.0, state.liveSpeed * pitchRatio));
+    }
+
+    // Live Equalizer updates
+    if (clarityFilter) {
+      clarityFilter.gain.setTargetAtTime(state.eqClarity, audioCtx.currentTime, 0.04);
+    }
+    if (warmthFilter) {
+      warmthFilter.gain.setTargetAtTime(state.eqBass, audioCtx.currentTime, 0.04);
+    }
+
+    // Live Reverb updates
+    if (wetGain && dryGain) {
+      if (state.reverbMode === 'dry') {
+        wetGain.gain.setTargetAtTime(0.0, audioCtx.currentTime, 0.04);
+        dryGain.gain.setTargetAtTime(1.0, audioCtx.currentTime, 0.04);
+      } else if (state.reverbMode === 'room') {
+        wetGain.gain.setTargetAtTime(0.35, audioCtx.currentTime, 0.04);
+        dryGain.gain.setTargetAtTime(0.85, audioCtx.currentTime, 0.04);
+      } else if (state.reverbMode === 'hall') {
+        wetGain.gain.setTargetAtTime(0.65, audioCtx.currentTime, 0.04);
+        dryGain.gain.setTargetAtTime(0.70, audioCtx.currentTime, 0.04);
+      }
+    }
+  }
+
+  // Upper Sliders (Rate & Pitch) - Synchronized with live audio review
   rateSlider.addEventListener('input', function () {
     const val = parseInt(this.value, 10);
     state.rateAdjust = val;
     rateValue.textContent = val === 0 ? 'Normal (0%)' : `${val > 0 ? '+' : ''}${val}%`;
+
+    // Real-time review on already generated audio
+    if (state.hasAudioLoaded) {
+      const mappedSpeed = Math.round((1.0 + (val / 100)) * 20) / 20;
+      state.liveSpeed = Math.max(0.5, Math.min(2.0, mappedSpeed));
+      liveSpeedSlider.value = state.liveSpeed;
+      liveSpeedValue.textContent = `${state.liveSpeed.toFixed(2)}x`;
+      quickTempoChips.forEach(c => {
+        c.classList.toggle('active', parseFloat(c.getAttribute('data-speed')) === state.liveSpeed);
+      });
+      updateLivePlaybackParameters();
+    }
   });
 
   pitchSlider.addEventListener('input', function () {
     const val = parseInt(this.value, 10);
     state.pitchAdjust = val;
     pitchValue.textContent = val === 0 ? 'Normal (0Hz)' : `${val > 0 ? '+' : ''}${val}Hz`;
+
+    // Real-time review on already generated audio
+    if (state.hasAudioLoaded) {
+      const mappedPitch = Math.round((val / 20) * 8);
+      state.livePitch = Math.max(-10, Math.min(10, mappedPitch));
+      livePitchSlider.value = state.livePitch;
+      livePitchValue.textContent = state.livePitch === 0 ? 'Normal (0)' : `${state.livePitch > 0 ? '+' : ''}${state.livePitch}`;
+      updateLivePlaybackParameters();
+    }
   });
 
+  // Studio Real-time Speed Slider & Chips
+  liveSpeedSlider.addEventListener('input', function () {
+    const spd = parseFloat(this.value);
+    state.liveSpeed = spd;
+    liveSpeedValue.textContent = `${spd.toFixed(2)}x ${spd === 1.0 ? '(Normal)' : ''}`;
+    quickTempoChips.forEach(c => {
+      c.classList.toggle('active', parseFloat(c.getAttribute('data-speed')) === spd);
+    });
+    updateLivePlaybackParameters();
+  });
+
+  quickTempoChips.forEach(chip => {
+    chip.addEventListener('click', function () {
+      const spd = parseFloat(this.getAttribute('data-speed'));
+      state.liveSpeed = spd;
+      liveSpeedSlider.value = spd;
+      liveSpeedValue.textContent = `${spd.toFixed(2)}x ${spd === 1.0 ? '(Normal)' : ''}`;
+      quickTempoChips.forEach(c => c.classList.remove('active'));
+      this.classList.add('active');
+      updateLivePlaybackParameters();
+    });
+  });
+
+  // Studio Real-time Pitch Shift Slider
+  livePitchSlider.addEventListener('input', function () {
+    const p = parseInt(this.value, 10);
+    state.livePitch = p;
+    livePitchValue.textContent = p === 0 ? 'Normal (0)' : `${p > 0 ? '+' : ''}${p} semitone`;
+    updateLivePlaybackParameters();
+  });
+
+  // Studio Equalizer Sliders
+  eqClaritySlider.addEventListener('input', function () {
+    const val = parseInt(this.value, 10);
+    state.eqClarity = val;
+    eqClarityValue.textContent = val === 0 ? '+0 dB (Flat)' : `+${val} dB ${val >= 6 ? '(Sangat Jernih)' : ''}`;
+    updateLivePlaybackParameters();
+  });
+
+  eqBassSlider.addEventListener('input', function () {
+    const val = parseInt(this.value, 10);
+    state.eqBass = val;
+    eqBassValue.textContent = val === 0 ? '+0 dB (Flat)' : `+${val} dB ${val >= 5 ? '(Empuk & Tebal)' : ''}`;
+    updateLivePlaybackParameters();
+  });
+
+  // Studio Reverb Cards
+  reverbCards.forEach(card => {
+    card.addEventListener('click', function () {
+      const mode = this.getAttribute('data-reverb');
+      reverbCards.forEach(c => {
+        c.classList.remove('active');
+        c.setAttribute('aria-checked', 'false');
+      });
+      this.classList.add('active');
+      this.setAttribute('aria-checked', 'true');
+      state.reverbMode = mode;
+      updateLivePlaybackParameters();
+    });
+  });
+
+  // Studio Trimmer Handlers
+  trimStartSlider.addEventListener('input', function () {
+    let startVal = parseFloat(this.value);
+    if (startVal >= state.trimEnd) {
+      startVal = Math.max(0, state.trimEnd - 0.5);
+      this.value = startVal;
+    }
+    state.trimStart = startVal;
+    trimStartValue.textContent = `${startVal.toFixed(2)}s`;
+  });
+
+  trimEndSlider.addEventListener('input', function () {
+    let endVal = parseFloat(this.value);
+    if (endVal <= state.trimStart) {
+      endVal = Math.min(state.duration, state.trimStart + 0.5);
+      this.value = endVal;
+    }
+    state.trimEnd = endVal;
+    trimEndValue.textContent = `${endVal.toFixed(2)}s`;
+  });
+
+  previewTrimBtn.addEventListener('click', function () {
+    if (!audio.src) return;
+    initAudioContext();
+    audio.currentTime = state.trimStart;
+    audio.play().then(() => setPlayingState(true));
+  });
+
+  resetTrimBtn.addEventListener('click', function () {
+    if (!audio.src) return;
+    state.trimStart = 0;
+    state.trimEnd = state.duration;
+    trimStartSlider.value = 0;
+    trimStartValue.textContent = '0.00s';
+    trimEndSlider.value = state.duration;
+    trimEndValue.textContent = `${state.duration.toFixed(2)}s`;
+  });
+
+  // Reset All Audio Effects
+  resetAudioEffectsBtn.addEventListener('click', function () {
+    state.liveSpeed = 1.0;
+    state.livePitch = 0;
+    state.eqClarity = 0;
+    state.eqBass = 0;
+    state.reverbMode = 'dry';
+
+    liveSpeedSlider.value = 1.0;
+    liveSpeedValue.textContent = '1.0x (Normal)';
+    quickTempoChips.forEach(c => c.classList.toggle('active', c.getAttribute('data-speed') === '1.0'));
+
+    livePitchSlider.value = 0;
+    livePitchValue.textContent = 'Normal (0)';
+
+    eqClaritySlider.value = 0;
+    eqClarityValue.textContent = '+0 dB (Flat)';
+
+    eqBassSlider.value = 0;
+    eqBassValue.textContent = '+0 dB (Flat)';
+
+    reverbCards.forEach(c => {
+      const isDry = c.getAttribute('data-reverb') === 'dry';
+      c.classList.toggle('active', isDry);
+      c.setAttribute('aria-checked', isDry ? 'true' : 'false');
+    });
+
+    if (state.duration) {
+      state.trimStart = 0;
+      state.trimEnd = state.duration;
+      trimStartSlider.value = 0;
+      trimStartValue.textContent = '0.00s';
+      trimEndSlider.value = state.duration;
+      trimEndValue.textContent = `${state.duration.toFixed(2)}s`;
+    }
+
+    updateLivePlaybackParameters();
+  });
+
+  // ==========================================================================
   // Generate TTS Synthesis
+  // ==========================================================================
+
   generateBtn.addEventListener('click', async function () {
     const text = speechText.value.trim();
     if (!text) {
@@ -287,10 +581,27 @@
       audio.src = state.audioUrlMp3;
       audio.load();
 
+      state.hasAudioLoaded = true;
+
+      // Update Trimmer limits
+      state.duration = decodedBuffer.duration;
+      state.trimStart = 0;
+      state.trimEnd = decodedBuffer.duration;
+      trimStartSlider.max = Math.ceil(decodedBuffer.duration);
+      trimEndSlider.max = Math.ceil(decodedBuffer.duration);
+      trimStartSlider.value = 0;
+      trimEndSlider.value = decodedBuffer.duration;
+      trimStartValue.textContent = '0.00s';
+      trimEndValue.textContent = `${decodedBuffer.duration.toFixed(2)}s`;
+
       // Update Player Dock State
       const previewTitle = text.length > 45 ? text.substring(0, 42) + '...' : text;
       playerTitle.textContent = `"${previewTitle}"`;
       updateDockSubtitle();
+
+      // Update Studio Status Pill
+      studioStatusPill.textContent = 'Audio Aktif & Siap Diedit';
+      studioStatusPill.classList.add('ready');
 
       // Enable player controls
       playPauseBtn.disabled = false;
@@ -298,6 +609,9 @@
       forwardBtn.disabled = false;
       downloadMp3Btn.disabled = false;
       downloadWavBtn.disabled = false;
+
+      // Apply any preset live parameters immediately
+      updateLivePlaybackParameters();
 
       // Start playback automatically for preview
       audio.play().then(() => {
@@ -339,6 +653,9 @@
     if (!audio.src) return;
     initAudioContext();
     if (audio.paused) {
+      if (audio.currentTime < state.trimStart || audio.currentTime >= state.trimEnd) {
+        audio.currentTime = state.trimStart;
+      }
       audio.play().then(() => setPlayingState(true));
     } else {
       audio.pause();
@@ -348,13 +665,13 @@
 
   rewindBtn.addEventListener('click', function () {
     if (audio.duration) {
-      audio.currentTime = Math.max(0, audio.currentTime - 5);
+      audio.currentTime = Math.max(state.trimStart, audio.currentTime - 5);
     }
   });
 
   forwardBtn.addEventListener('click', function () {
     if (audio.duration) {
-      audio.currentTime = Math.min(audio.duration, audio.currentTime + 5);
+      audio.currentTime = Math.min(state.trimEnd || audio.duration, audio.currentTime + 5);
     }
   });
 
@@ -362,12 +679,27 @@
   audio.addEventListener('loadedmetadata', function () {
     state.duration = audio.duration;
     durationTimeEl.textContent = formatTime(audio.duration);
+    if (!state.trimEnd) {
+      state.trimEnd = audio.duration;
+      trimEndSlider.max = Math.ceil(audio.duration);
+      trimEndSlider.value = audio.duration;
+      trimEndValue.textContent = `${audio.duration.toFixed(2)}s`;
+    }
   });
 
   audio.addEventListener('timeupdate', function () {
     if (!audio.duration) return;
     const current = audio.currentTime;
     const dur = audio.duration;
+
+    // Enforce trimmer boundaries
+    if (state.trimEnd && current >= state.trimEnd) {
+      audio.pause();
+      setPlayingState(false);
+      audio.currentTime = state.trimStart;
+      return;
+    }
+
     const percent = (current / dur) * 100;
     progressFill.style.width = `${percent}%`;
     currentTimeEl.textContent = formatTime(current);
@@ -378,6 +710,7 @@
     setPlayingState(false);
     progressFill.style.width = '0%';
     currentTimeEl.textContent = '0:00';
+    audio.currentTime = state.trimStart;
   });
 
   // Scrubber Click Seeking
@@ -393,9 +726,9 @@
   progressTrack.addEventListener('keydown', function (e) {
     if (!audio.duration) return;
     if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
-      audio.currentTime = Math.min(audio.duration, audio.currentTime + 3);
+      audio.currentTime = Math.min(state.trimEnd || audio.duration, audio.currentTime + 3);
     } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
-      audio.currentTime = Math.max(0, audio.currentTime - 3);
+      audio.currentTime = Math.max(state.trimStart, audio.currentTime - 3);
     }
   });
 
@@ -417,11 +750,92 @@
     }
   });
 
-  // Download Handlers
-  function triggerDownload(blob, extension) {
+  // ==========================================================================
+  // Export Audio (with Studio Effects Rendering)
+  // ==========================================================================
+
+  async function renderEditedAudioBuffer() {
+    if (!state.audioBuffer) return null;
+    const orig = state.audioBuffer;
+    const trimStart = state.trimStart || 0;
+    const trimEnd = state.trimEnd || orig.duration;
+
+    const startSample = Math.floor(trimStart * orig.sampleRate);
+    const endSample = Math.min(orig.length, Math.floor(trimEnd * orig.sampleRate));
+    const frameCount = Math.max(1, endSample - startSample);
+
+    const offlineCtx = new OfflineAudioContext(orig.numberOfChannels, frameCount, orig.sampleRate);
+
+    // Create Sliced buffer
+    const sliced = offlineCtx.createBuffer(orig.numberOfChannels, frameCount, orig.sampleRate);
+    for (let ch = 0; ch < orig.numberOfChannels; ch++) {
+      const srcData = orig.getChannelData(ch);
+      const dstData = sliced.getChannelData(ch);
+      for (let i = 0; i < frameCount; i++) {
+        dstData[i] = srcData[startSample + i];
+      }
+    }
+
+    const source = offlineCtx.createBufferSource();
+    source.buffer = sliced;
+
+    // Pitch ratio
+    const semitones = state.livePitch;
+    const pitchRatio = Math.pow(2, semitones / 12);
+    source.playbackRate.value = Math.max(0.25, Math.min(3.0, state.liveSpeed * pitchRatio));
+
+    // Equalizer: Clarity
+    const eqC = offlineCtx.createBiquadFilter();
+    eqC.type = 'peaking';
+    eqC.frequency.value = 3200;
+    eqC.Q.value = 1.2;
+    eqC.gain.value = state.eqClarity;
+
+    // Equalizer: Warmth
+    const eqW = offlineCtx.createBiquadFilter();
+    eqW.type = 'lowshelf';
+    eqW.frequency.value = 200;
+    eqW.gain.value = state.eqBass;
+
+    // Reverb Convolver
+    const conv = offlineCtx.createConvolver();
+    conv.buffer = createReverbImpulse(offlineCtx, 1.2, 2.5);
+
+    const wG = offlineCtx.createGain();
+    const dG = offlineCtx.createGain();
+
+    if (state.reverbMode === 'room') {
+      wG.gain.value = 0.35;
+      dG.gain.value = 0.85;
+    } else if (state.reverbMode === 'hall') {
+      wG.gain.value = 0.65;
+      dG.gain.value = 0.70;
+    } else {
+      wG.gain.value = 0.0;
+      dG.gain.value = 1.0;
+    }
+
+    source.connect(eqC);
+    eqC.connect(eqW);
+
+    eqW.connect(dG);
+    dG.connect(offlineCtx.destination);
+
+    if (state.reverbMode !== 'dry') {
+      eqW.connect(conv);
+      conv.connect(wG);
+      wG.connect(offlineCtx.destination);
+    }
+
+    source.start();
+    return await offlineCtx.startRendering();
+  }
+
+  function triggerDownload(blob, extension, isEdited = false) {
     if (!blob) return;
     const voiceCode = state.selectedVoice.includes('Ardi') ? 'laki' : 'perempuan';
-    const filename = `suarakaca_${voiceCode}_${state.selectedTone}.${extension}`;
+    const tag = isEdited ? '_studio_edit' : '';
+    const filename = `suarakaca_${voiceCode}_${state.selectedTone}${tag}.${extension}`;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -433,11 +847,27 @@
   }
 
   downloadMp3Btn.addEventListener('click', function () {
-    triggerDownload(state.audioBlobMp3, 'mp3');
+    triggerDownload(state.audioBlobMp3, 'mp3', false);
   });
 
-  downloadWavBtn.addEventListener('click', function () {
-    triggerDownload(state.audioBlobWav, 'wav');
+  downloadWavBtn.addEventListener('click', async function () {
+    const hasEdits = state.liveSpeed !== 1.0 || state.livePitch !== 0 || state.eqClarity !== 0 || state.eqBass !== 0 || state.reverbMode !== 'dry' || state.trimStart > 0 || (state.duration && state.trimEnd < state.duration - 0.2);
+
+    if (hasEdits && state.audioBuffer) {
+      try {
+        downloadWavBtn.disabled = true;
+        const rendered = await renderEditedAudioBuffer();
+        const editedWav = window.audioBufferToWavBlob(rendered);
+        triggerDownload(editedWav, 'wav', true);
+      } catch (e) {
+        console.warn('Fallback to original WAV:', e);
+        triggerDownload(state.audioBlobWav, 'wav', false);
+      } finally {
+        downloadWavBtn.disabled = false;
+      }
+    } else {
+      triggerDownload(state.audioBlobWav, 'wav', false);
+    }
   });
 
   // Spotify-style Audio Wave Spectrum Visualizer (Canvas)
@@ -464,7 +894,7 @@
         const x = startX + i * (barWidth + gap);
         const y = visualizerCanvas.height - barHeight;
 
-        // Spotify Green gradient
+        // Spotify Green
         canvasCtx.fillStyle = '#1db954';
         canvasCtx.beginPath();
         canvasCtx.roundRect(x, y, barWidth, barHeight, [2, 2, 0, 0]);
@@ -482,7 +912,6 @@
       cancelAnimationFrame(visualizerAnimId);
       visualizerAnimId = null;
     }
-    // Draw calm baseline
     canvasCtx.clearRect(0, 0, visualizerCanvas.width, visualizerCanvas.height);
     const numBars = 14;
     const barWidth = 3;
@@ -508,7 +937,6 @@
 
   function openModal() {
     profileModal.style.display = 'flex';
-    // Trigger reflow for smooth transition
     void profileModal.offsetWidth;
     profileModal.classList.add('open');
     closeProfileModal.focus();
