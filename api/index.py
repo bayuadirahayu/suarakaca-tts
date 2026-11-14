@@ -4,8 +4,8 @@ import asyncio
 import urllib.parse
 import urllib.request
 from typing import Optional
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import Response
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import Response, JSONResponse
 from pydantic import BaseModel
 import edge_tts
 
@@ -19,29 +19,55 @@ class TTSRequest(BaseModel):
     pitch_adjust: Optional[int] = 0
 
 TONE_PROSODY = {
-    "kreator": {
-        "base_rate": 16,     # fast, brisk, dynamic TikTok/Reels educational narration
-        "base_pitch": 6      # crisp, bright presence
-    },
-    "ceria": {
-        "base_rate": 14,
-        "base_pitch": 8
-    },
-    "sedih": {
-        "base_rate": -16,
-        "base_pitch": -8
-    },
-    "naratif": {
-        "base_rate": -2,
-        "base_pitch": 0
-    }
+    "kreator": {"base_rate": 16, "base_pitch": 6},
+    "ceria":   {"base_rate": 14, "base_pitch": 8},
+    "sedih":   {"base_rate": -16,"base_pitch": -8},
+    "naratif": {"base_rate": -2, "base_pitch": 0},
 }
 
+VOICES_DATA = {
+    "voices": [
+        {
+            "id": "id-ID-GadisNeural",
+            "name": "Gadis (Perempuan)",
+            "gender": "female",
+            "lang": "id-ID",
+            "description": "Suara wanita Indonesia yang jernih, ramah, dan artikulatif."
+        },
+        {
+            "id": "id-ID-ArdiNeural",
+            "name": "Ardi (Laki-laki)",
+            "gender": "male",
+            "lang": "id-ID",
+            "description": "Suara pria Indonesia yang berwibawa, hangat, dan natural."
+        }
+    ],
+    "tones": [
+        {
+            "id": "kreator",
+            "label": "Narasi Kreator (Reels/Shorts)",
+            "description": "Gaya suara narasi video edukasi cepat, tegas, dan artikulatif ala TikTok/Reels."
+        },
+        {
+            "id": "naratif",
+            "label": "Naratif",
+            "description": "Irama pas, tenang, dan stabil untuk buku audio, podcast, atau berita."
+        },
+        {
+            "id": "ceria",
+            "label": "Ceria",
+            "description": "Intonasi riang, bersemangat, dan ekspresif untuk konten gembira."
+        },
+        {
+            "id": "sedih",
+            "label": "Sedih",
+            "description": "Tempo lembut, perlahan, dan emosional untuk narasi haru."
+        }
+    ]
+}
+
+
 def fallback_google_tts(text: str) -> bytes:
-    """
-    Ultra-reliable, zero-block Indonesian TTS fallback.
-    Splits text into readable chunks and fetches clean MP3 stream without blocking.
-    """
     sentences = [s.strip() for s in re.split(r'[.,!?;:\n]+', text) if s.strip()]
     if not sentences:
         sentences = [text]
@@ -82,68 +108,19 @@ def fallback_google_tts(text: str) -> bytes:
     return b"".join(audio_chunks)
 
 
-@app.get("/api/voices")
-async def get_voices():
-    return {
-        "voices": [
-            {
-                "id": "id-ID-GadisNeural",
-                "name": "Gadis (Perempuan)",
-                "gender": "female",
-                "lang": "id-ID",
-                "description": "Suara wanita Indonesia yang jernih, ramah, dan artikulatif."
-            },
-            {
-                "id": "id-ID-ArdiNeural",
-                "name": "Ardi (Laki-laki)",
-                "gender": "male",
-                "lang": "id-ID",
-                "description": "Suara pria Indonesia yang berwibawa, hangat, dan natural."
-            }
-        ],
-        "tones": [
-            {
-                "id": "kreator",
-                "label": "Narasi Kreator (Reels/Shorts)",
-                "description": "Gaya suara narasi video edukasi cepat, tegas, dan artikulatif ala TikTok/Reels."
-            },
-            {
-                "id": "naratif",
-                "label": "Naratif",
-                "description": "Irama pas, tenang, dan stabil untuk buku audio, podcast, atau berita."
-            },
-            {
-                "id": "ceria",
-                "label": "Ceria",
-                "description": "Intonasi riang, bersemangat, dan ekspresif untuk konten gembira."
-            },
-            {
-                "id": "sedih",
-                "label": "Sedih",
-                "description": "Tempo lembut, perlahan, dan emosional untuk narasi haru."
-            }
-        ]
-    }
-
 async def generate_with_edge_tts(text: str, voice: str, rate_str: str, pitch_str: str) -> bytes:
-    communicate = edge_tts.Communicate(
-        text=text,
-        voice=voice,
-        rate=rate_str,
-        pitch=pitch_str
-    )
+    communicate = edge_tts.Communicate(text=text, voice=voice, rate=rate_str, pitch=pitch_str)
     audio_stream = io.BytesIO()
     async for chunk in communicate.stream():
         if chunk["type"] == "audio":
             audio_stream.write(chunk["data"])
     return audio_stream.getvalue()
 
-@app.post("/api/tts")
-async def generate_speech(payload: TTSRequest):
+
+async def _do_tts(payload: TTSRequest) -> Response:
     text = payload.text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="Teks tidak boleh kosong.")
-
     if len(text) > 4000:
         raise HTTPException(status_code=400, detail="Maksimum panjang teks adalah 4000 karakter.")
 
@@ -152,11 +129,8 @@ async def generate_speech(payload: TTSRequest):
         voice = "id-ID-GadisNeural"
 
     tone_preset = TONE_PROSODY.get(payload.tone, TONE_PROSODY["naratif"])
-    effective_rate = tone_preset["base_rate"] + payload.rate_adjust
-    effective_pitch = tone_preset["base_pitch"] + payload.pitch_adjust
-
-    effective_rate = max(-50, min(80, effective_rate))
-    effective_pitch = max(-50, min(50, effective_pitch))
+    effective_rate = max(-50, min(80, tone_preset["base_rate"] + payload.rate_adjust))
+    effective_pitch = max(-50, min(50, tone_preset["base_pitch"] + payload.pitch_adjust))
 
     rate_str = f"{effective_rate:+d}%"
     pitch_str = f"{effective_pitch:+d}Hz"
@@ -164,17 +138,15 @@ async def generate_speech(payload: TTSRequest):
     audio_bytes = None
     engine_used = "edge-neural"
 
-    # 1. Try Edge TTS with strict 3.5-second timeout (avoids long hanging on blocked networks / Vercel)
     try:
         audio_bytes = await asyncio.wait_for(
             generate_with_edge_tts(text, voice, rate_str, pitch_str),
             timeout=3.5
         )
     except Exception as edge_err:
-        print(f"Edge TTS connection notice ({type(edge_err).__name__}): {edge_err}. Switching to reliable fallback...")
+        print(f"Edge TTS fallback ({type(edge_err).__name__}): {edge_err}")
         audio_bytes = None
 
-    # 2. Transparent fallback to high-reliability Google Indonesian TTS
     if not audio_bytes:
         try:
             audio_bytes = await asyncio.to_thread(fallback_google_tts, text)
@@ -196,3 +168,23 @@ async def generate_speech(payload: TTSRequest):
             "X-Voice-Applied": voice
         }
     )
+
+
+# ── Routes: register with both /api/* prefix AND bare /* ──────────────────────
+# Vercel sometimes strips the /api prefix when routing to the serverless fn.
+
+@app.get("/api/voices")
+@app.get("/voices")
+async def get_voices():
+    return VOICES_DATA
+
+@app.post("/api/tts")
+@app.post("/tts")
+async def generate_speech(payload: TTSRequest):
+    return await _do_tts(payload)
+
+@app.get("/api/health")
+@app.get("/health")
+@app.get("/")
+async def health():
+    return {"status": "ok", "service": "SuaraKaca TTS"}
