@@ -1,4 +1,3 @@
-import os
 import io
 import re
 import asyncio
@@ -6,7 +5,7 @@ import urllib.parse
 import urllib.request
 from typing import Optional
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import Response, FileResponse
+from fastapi.responses import Response
 from pydantic import BaseModel
 import edge_tts
 
@@ -82,13 +81,6 @@ def fallback_google_tts(text: str) -> bytes:
 
     return b"".join(audio_chunks)
 
-@app.get("/")
-async def root():
-    if os.path.exists("index.html"):
-        return FileResponse("index.html")
-    if os.path.exists("public/index.html"):
-        return FileResponse("public/index.html")
-    return {"status": "ok", "service": "SuaraKaca TTS API"}
 
 @app.get("/api/voices")
 async def get_voices():
