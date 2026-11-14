@@ -8,6 +8,7 @@
 
   // Preset sample texts
   const PRESET_TEXTS = {
+    kreator: "Nah, tau nggak sih? Ternyata ada fakta menarik yang jarang banget dibahas soal ini. Yuk, kita kupas tuntas dalam waktu 60 detik aja!",
     naratif: "Di antara deburan ombak pantai selatan dan keheningan perbukitan, sebuah kisah lama kembali terdengar. Waktu seolah berhenti sejenak, mengizinkan setiap kata meresap ke dalam sanubari para pendengarnya.",
     ceria: "Halo teman-teman semua! Selamat datang di hari yang cerah dan penuh semangat ini. Jangan lupa tersenyum dan mari kita mulai petualangan baru bersama-sama hari ini!",
     sedih: "Kala senja perlahan meredup di ufuk barat, hanya tersisa kenangan manis yang tak lagi bisa disentuh. Ruang ini menjadi begitu sunyi tanpa senyum hangatmu lagi di sini."
@@ -279,6 +280,7 @@
     card.setAttribute('aria-checked', 'true');
     state.selectedTone = toneId;
     const names = {
+      kreator: 'Kreator (Shorts)',
       naratif: 'Naratif',
       ceria: 'Ceria',
       sedih: 'Sedih'

@@ -20,6 +20,10 @@ class TTSRequest(BaseModel):
     pitch_adjust: Optional[int] = 0
 
 TONE_PROSODY = {
+    "kreator": {
+        "base_rate": 16,     # fast, brisk, dynamic TikTok/Reels educational narration
+        "base_pitch": 6      # crisp, bright presence
+    },
     "ceria": {
         "base_rate": 14,
         "base_pitch": 8
@@ -107,6 +111,16 @@ async def get_voices():
         ],
         "tones": [
             {
+                "id": "kreator",
+                "label": "Narasi Kreator (Reels/Shorts)",
+                "description": "Gaya suara narasi video edukasi cepat, tegas, dan artikulatif ala TikTok/Reels."
+            },
+            {
+                "id": "naratif",
+                "label": "Naratif",
+                "description": "Irama pas, tenang, dan stabil untuk buku audio, podcast, atau berita."
+            },
+            {
                 "id": "ceria",
                 "label": "Ceria",
                 "description": "Intonasi riang, bersemangat, dan ekspresif untuk konten gembira."
@@ -115,11 +129,6 @@ async def get_voices():
                 "id": "sedih",
                 "label": "Sedih",
                 "description": "Tempo lembut, perlahan, dan emosional untuk narasi haru."
-            },
-            {
-                "id": "naratif",
-                "label": "Naratif",
-                "description": "Irama pas, tenang, dan stabil untuk buku audio, podcast, atau berita."
             }
         ]
     }
