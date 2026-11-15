@@ -252,7 +252,13 @@
     element.classList.add('active');
     element.setAttribute('aria-checked', 'true');
     state.selectedVoice = voiceId;
-    state.selectedVoiceName = voiceId === 'id-ID-ArdiNeural' ? 'Ardi (Laki-laki)' : 'Gadis (Perempuan)';
+    const voiceNames = {
+      'id-ID-GadisNeural': 'Gadis (Perempuan)',
+      'id-ID-ArdiNeural': 'Ardi (Laki-laki)',
+      'id-ID-LarasNeural': 'Laras (Perempuan)',
+      'id-ID-BagasNeural': 'Bagas (Laki-laki)'
+    };
+    state.selectedVoiceName = voiceNames[voiceId] || 'Gadis (Perempuan)';
     updateDockSubtitle();
   }
 
