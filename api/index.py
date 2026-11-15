@@ -220,14 +220,13 @@ async def _do_tts(payload: TTSRequest) -> Response:
     engine_used = "edge-neural"
     media_type = "audio/mpeg"
 
-    # 1. Check if Gemini TTS model applies for Laras (Aoede) or Bagas (Orus)
-    if requested_voice == "id-ID-LarasNeural":
-        audio_bytes = await generate_with_gemini_tts(text, "Aoede", payload.tone)
-        if audio_bytes:
-            engine_used = "gemini-tts"
-            media_type = "audio/wav"
-    elif requested_voice == "id-ID-BagasNeural":
-        audio_bytes = await generate_with_gemini_tts(text, "Orus", payload.tone)
+    # 1. Check if Gemini TTS model applies
+    gemini_voice_map = {
+        "id-ID-LarasNeural": "Aoede",
+        "id-ID-BagasNeural": "Orus",
+    }
+    if requested_voice in gemini_voice_map:
+        audio_bytes = await generate_with_gemini_tts(text, gemini_voice_map[requested_voice], payload.tone)
         if audio_bytes:
             engine_used = "gemini-tts"
             media_type = "audio/wav"
@@ -260,7 +259,15 @@ async def _do_tts(payload: TTSRequest) -> Response:
             print(f"Edge TTS notice ({type(edge_err).__name__}): {edge_err}. Switching to reliable fallback...")
             audio_bytes = None
 
-    # 3. Transparent fallback to high-reliability Google Indonesian TTS
+    # 3. If Edge TTS failed (e.g. cloud IP blocked on Vercel), try Gemini fallback for Gadis/Ardi
+    if not audio_bytes and requested_voice in ["id-ID-GadisNeural", "id-ID-ArdiNeural"]:
+        fallback_gemini_voice = "Kore" if requested_voice == "id-ID-GadisNeural" else "Fenrir"
+        audio_bytes = await generate_with_gemini_tts(text, fallback_gemini_voice, payload.tone)
+        if audio_bytes:
+            engine_used = "gemini-tts-fallback"
+            media_type = "audio/wav"
+
+    # 4. Transparent fallback to high-reliability Google Indonesian TTS
     if not audio_bytes:
         try:
             audio_bytes = await asyncio.wait_for(
