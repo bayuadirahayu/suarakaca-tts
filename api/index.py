@@ -9,7 +9,7 @@ import urllib.parse
 import urllib.request
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import Response, JSONResponse
+from fastapi.responses import Response, JSONResponse, FileResponse
 from pydantic import BaseModel
 import edge_tts
 
@@ -300,6 +300,12 @@ async def generate_speech(payload: TTSRequest):
 
 @app.get("/api/health")
 @app.get("/health")
-@app.get("/")
 async def health():
+    return {"status": "ok", "service": "SuaraKaca TTS"}
+
+@app.get("/")
+async def root():
+    for p in ["index.html", "static/index.html", "public/index.html"]:
+        if os.path.exists(p):
+            return FileResponse(p)
     return {"status": "ok", "service": "SuaraKaca TTS"}
