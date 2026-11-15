@@ -97,7 +97,7 @@ def fallback_google_tts(text: str) -> bytes:
     }
 
     import httpx
-    with httpx.Client(timeout=10.0, follow_redirects=True, headers=headers) as client:
+    with httpx.Client(timeout=4.0, follow_redirects=True, headers=headers) as client:
         for sentence in sentences:
             words = sentence.split()
             current_chunk = []
@@ -232,7 +232,7 @@ async def _do_tts(payload: TTSRequest) -> Response:
             engine_used = "gemini-tts"
             media_type = "audio/wav"
 
-    # 2. Edge TTS engine (with distinctive persona prosody for Laras and Bagas)
+    # 2. Edge TTS engine (strict 2.8s timeout to avoid Vercel 10s serverless timeout)
     if not audio_bytes:
         edge_voice = "id-ID-GadisNeural"
         if requested_voice == "id-ID-ArdiNeural":
@@ -252,22 +252,28 @@ async def _do_tts(payload: TTSRequest) -> Response:
         try:
             audio_bytes = await asyncio.wait_for(
                 generate_with_edge_tts(text, edge_voice, rate_str, pitch_str),
-                timeout=7.0
+                timeout=2.8
             )
             engine_used = "edge-neural"
             media_type = "audio/mpeg"
         except Exception as edge_err:
-            print(f"Edge TTS fallback notice ({type(edge_err).__name__}): {edge_err}")
+            print(f"Edge TTS notice ({type(edge_err).__name__}): {edge_err}. Switching to reliable fallback...")
             audio_bytes = None
 
-    # 3. Transparent fallback to Google TTS
+    # 3. Transparent fallback to high-reliability Google Indonesian TTS
     if not audio_bytes:
         try:
-            audio_bytes = await asyncio.to_thread(fallback_google_tts, text)
+            audio_bytes = await asyncio.wait_for(
+                asyncio.to_thread(fallback_google_tts, text),
+                timeout=4.5
+            )
             engine_used = "google-id"
             media_type = "audio/mpeg"
         except Exception as fallback_err:
-            raise HTTPException(status_code=502, detail=f"Gagal memproses audio: {str(fallback_err)}")
+            raise HTTPException(
+                status_code=502,
+                detail="Serverless Vercel dibatasi jaringan cloud. Tambahkan GEMINI_API_KEY di Vercel Environment Variables untuk performa stabil 100%."
+            )
 
     if not audio_bytes:
         raise HTTPException(status_code=502, detail="Tidak ada data audio yang dihasilkan.")

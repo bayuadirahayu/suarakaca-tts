@@ -562,8 +562,18 @@
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Gagal memproses suara. Periksa koneksi internet Anda.');
+        let errorMsg = 'Gagal memproses suara. Periksa koneksi internet Anda.';
+        try {
+          const errorData = await response.json();
+          if (errorData.detail) errorMsg = errorData.detail;
+        } catch (_) {
+          if (response.status === 504) {
+            errorMsg = 'Waktu proses serverless Vercel habis (504 Timeout). Coba teks yang lebih pendek atau atur GEMINI_API_KEY di Vercel.';
+          } else if (response.status === 502) {
+            errorMsg = 'Koneksi ke mesin suara cloud terhambat. Silakan coba klik Konversi sekali lagi.';
+          }
+        }
+        throw new Error(errorMsg);
       }
 
       const mp3Blob = await response.blob();
